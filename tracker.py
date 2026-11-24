@@ -2,6 +2,8 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 import uuid
 
+from deadlines import local_deadline
+
 CATEGORIES = ("Studies", "Project", "Personal")
 MAX_TITLE_LENGTH = 120
 
@@ -13,7 +15,7 @@ def create_task(title: str, category: str, deadline: date) -> dict[str, Any]:
         "title": title.strip()[:MAX_TITLE_LENGTH],
         "category": category,
         "completed": False,
-        "deadline": deadline,
+        "deadline": local_deadline(deadline),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
 

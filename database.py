@@ -7,12 +7,26 @@ def connect(url):
     return psycopg.connect(url, connect_timeout=8, row_factory=dict_row)
 
 
-def list_tasks(url):
+def ensure_schema(url):
     with connect(url) as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(724039826)")
         conn.execute("""CREATE TABLE IF NOT EXISTS learning_tracker_tasks (
             id UUID PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL,
-            completed BOOLEAN NOT NULL, deadline DATE NOT NULL,
+            completed BOOLEAN NOT NULL, deadline TIMESTAMPTZ NOT NULL,
             created_at TIMESTAMPTZ NOT NULL)""")
+        kind = conn.execute("""SELECT atttypid::regtype::text AS kind
+            FROM pg_attribute WHERE attrelid='learning_tracker_tasks'::regclass
+            AND attname='deadline' AND NOT attisdropped""").fetchone()["kind"]
+        if kind == "date":
+            conn.execute("""ALTER TABLE learning_tracker_tasks
+                ALTER COLUMN deadline TYPE TIMESTAMPTZ
+                USING ((deadline + TIME '23:59') AT TIME ZONE 'Asia/Almaty')""")
+        elif kind != "timestamp with time zone":
+            raise RuntimeError("Unsupported deadline column type.")
+
+
+def list_tasks(url):
+    with connect(url) as conn:
         return conn.execute("SELECT * FROM learning_tracker_tasks ORDER BY created_at, id").fetchall()
 
 
