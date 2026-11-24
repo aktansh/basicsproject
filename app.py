@@ -311,9 +311,9 @@ def render_matrix(tasks, mode, now):
             groups = grouped[index]
             active = sum(len(groups.get(g, [])) for g in GROUPS)
             with col.container(key=f"quadrant-{number}", height=350, border=True):
-                st.markdown(f'<h3 class="quadrant-title"><small>{number}</small>{title}'
-                            f'<span aria-label="{active} active tasks">{active} active</span></h3>',
-                            unsafe_allow_html=True)
+                st.html(f'<div class="quadrant-title tone-{number}" role="heading" aria-level="3">'
+                        f'<small>{number}</small><strong>{title}</strong>'
+                        f'<span>{active} active</span></div>')
                 if not active:
                     st.caption("No active tasks")
                 for group in GROUPS:

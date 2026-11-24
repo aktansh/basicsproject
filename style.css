@@ -33,13 +33,13 @@ h3 { letter-spacing:-.025em; }
 .stTabs [role="tab"] p, .stTabs [role="tab"] { font-size:18px; font-weight:600; white-space:nowrap; }
 .stTabs [role="tab"][aria-selected="true"] { color:#AF8AFF; border-color:#8B5CF6; }
 .stTabs [data-baseweb="tab-highlight"] { display:none; }
-.st-key-quadrant-I { --quadrant:#FF5C70; }
-.st-key-quadrant-II { --quadrant:#FFB020; }
-.st-key-quadrant-III { --quadrant:#4F7CFF; }
-.st-key-quadrant-IV { --quadrant:#00C9A7; }
+.tone-I { --quadrant:#FF5C70; }
+.tone-II { --quadrant:#FFB020; }
+.tone-III { --quadrant:#4F7CFF; }
+.tone-IV { --quadrant:#00C9A7; }
 [class*="st-key-quadrant-"] { background:#191D32; border-radius:14px; }
-h3.quadrant-title { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
-  font-size:1.03rem; color:var(--quadrant); padding:.2rem 0; margin:0; }
+.quadrant-title { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  font-size:1.03rem; font-weight:600; color:var(--quadrant); padding:.2rem 0; margin:0; }
 .quadrant-title small { border:1px solid currentColor; padding:.1rem .33rem;
   border-radius:5px; font-size:.7rem; }
 .quadrant-title span { margin-left:auto; font-size:.75rem; font-weight:500; color:#9299B3; }
