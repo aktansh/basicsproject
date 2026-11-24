@@ -25,3 +25,35 @@ h3 { letter-spacing:-.025em; }
   [data-testid="stMetric"] { padding:.6rem .85rem; }
 }
 @media(prefers-reduced-motion:reduce) { .stButton button { transition:none; } }
+
+/* Allow long tab labels to wrap onto a second row on compact screens. */
+.stTabs [role="tablist"] { gap:.4rem 1rem; flex-wrap:wrap; height:auto; }
+.stTabs [role="tab"] { height:auto; min-height:48px; padding:.55rem .7rem;
+  border-bottom:2px solid transparent; transition:color .15s, border-color .15s; }
+.stTabs [role="tab"] p, .stTabs [role="tab"] { font-size:18px; font-weight:600; white-space:nowrap; }
+.stTabs [role="tab"][aria-selected="true"] { color:#AF8AFF; border-color:#8B5CF6; }
+.stTabs [data-baseweb="tab-highlight"] { display:none; }
+.st-key-quadrant-I { --quadrant:#FF5C70; }
+.st-key-quadrant-II { --quadrant:#FFB020; }
+.st-key-quadrant-III { --quadrant:#4F7CFF; }
+.st-key-quadrant-IV { --quadrant:#00C9A7; }
+[class*="st-key-quadrant-"] { background:#191D32; border-radius:14px; }
+h3.quadrant-title { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  font-size:1.03rem; color:var(--quadrant); padding:.2rem 0; margin:0; }
+.quadrant-title small { border:1px solid currentColor; padding:.1rem .33rem;
+  border-radius:5px; font-size:.7rem; }
+.quadrant-title span { margin-left:auto; font-size:.75rem; font-weight:500; color:#9299B3; }
+[class*="st-key-row-matrix-"] { padding:.35rem 0 .5rem; border-top:1px solid #2B3048; }
+[class*="st-key-row-matrix-"] [data-testid="stVerticalBlock"] { gap:.18rem; }
+[class*="st-key-row-"]:has(input:checked) .task-meta { opacity:.72; }
+@media(max-width:760px) {
+  .stTabs [role="tablist"] { gap:0 .15rem; }
+  [class*="st-key-row-matrix-"] [data-testid="stHorizontalBlock"] { flex-wrap:nowrap; }
+  [class*="st-key-row-matrix-"] [data-testid="stColumn"] { min-width:0; }
+  [class*="st-key-row-matrix-"] [data-testid="stColumn"]:last-child { flex:0 0 4.6rem; }
+  .stTabs [role="tab"] { padding:.45rem .5rem; }
+  [data-testid="stHorizontalBlock"]:has([class*="st-key-quadrant-"]) { flex-wrap:wrap; }
+  [data-testid="stHorizontalBlock"]:has([class*="st-key-quadrant-"]) > [data-testid="stColumn"] { flex:1 1 100%; width:100%; }
+}
+
+[class*="st-key-row-"] [data-testid="stCheckbox"]:has(input:checked) p { text-decoration:line-through; opacity:.62; }

@@ -85,6 +85,8 @@ class DemoTest(unittest.TestCase):
         for task in list(at.session_state.samples):
             at.button(key=f"delete-demo-{task['id']}").click().run()
         self.counts(0, 0)
+        self.assertEqual(sum(c.value == "No active tasks" for c in at.caption), 4)
+        self.assertEqual(sum(e.label == "Completed (0)" for e in at.expander), 4)
         at.text_input(key="title").set_value("Assignment").run()
         at.text_input(key="quick").set_value("Friday or Wednesday").run()
         self.assertTrue(at.button(key="add").disabled)

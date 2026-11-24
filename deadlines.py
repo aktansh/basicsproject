@@ -33,6 +33,8 @@ def local_deadline(value):
 def status(deadline, completed, now):
     if completed:
         return "Completed"
+    if deadline is None:
+        return "No Date"
     due = local_deadline(deadline)
     now = now.astimezone(ZONE)
     if due < now:

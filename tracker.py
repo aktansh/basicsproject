@@ -8,15 +8,18 @@ CATEGORIES = ("Studies", "Project", "Personal")
 MAX_TITLE_LENGTH = 120
 
 
-def create_task(title: str, category: str, deadline: date) -> dict[str, Any]:
+def create_task(title: str, category: str, deadline: date | None, *,
+                urgent: bool = False, important: bool = False) -> dict[str, Any]:
     """Create a new task with a unique ID and UTC creation timestamp."""
     return {
         "id": str(uuid.uuid4()),
         "title": title.strip()[:MAX_TITLE_LENGTH],
         "category": category,
         "completed": False,
-        "deadline": local_deadline(deadline),
-        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "deadline": local_deadline(deadline) if deadline is not None else None,
+        "urgent": urgent,
+        "important": important,
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -43,8 +46,9 @@ def sample_tasks(today: date) -> list[dict]:
         ("Read one chapter", "Personal", 5, True),
     ]
     tasks = []
-    for title, category, days, completed in examples:
-        task = create_task(title, category, today + timedelta(days=days))
+    for index, (title, category, days, completed) in enumerate(examples):
+        task = create_task(title, category, today + timedelta(days=days),
+                           urgent=index in (0, 1), important=index in (1, 2))
         task["completed"] = completed
         tasks.append(task)
     return tasks

@@ -12,6 +12,8 @@ from streamlit.errors import StreamlitSecretNotFoundError
 from deadlines import END_OF_DAY, ZONE, local_deadline, recognize, status
 from tracker import CATEGORIES, MAX_TITLE_LENGTH, calculate_statistics, create_task, sample_tasks
 
+from priority import FILTERS, GROUPS, QUADRANTS, SORTS, ordered, quadrant
+
 S = st.session_state
 
 
@@ -21,7 +23,7 @@ def today():
 
 def reset_draft():
     S.update(title="", quick="", day=today(), clock=END_OF_DAY, manual=False,
-             clean="", issue="", detected=False, had_detection=False, draft_id=str(uuid4()))
+             draft_important=False, draft_urgent=False, clean="", issue="", detected=False, had_detection=False, draft_id=str(uuid4()))
 
 
 def detect():
@@ -42,6 +44,16 @@ def detect():
     except ValueError as exc:
         S.issue = str(exc)
     S.had_detection = S.detected
+
+
+def clear_deadline():
+    if not S.issue:
+        S.title = S.clean
+    S.quick = ""
+    S.day = None
+    S.issue = ""
+    S.detected = S.had_detection = False
+    S.clean = S.title.strip()
 
 
 def shortcut(days):
@@ -88,10 +100,11 @@ def mutate(mode, action, ident=None, value=None):
         if not hmac.compare_digest(S.get("password", "").encode(), settings["workspace_password"].encode()):
             return
     if action == "add":
-        if S.issue or not S.clean or not S.day or S.clock is None:
+        if S.issue or not S.clean or (S.day and S.clock is None):
             S.notice = "Enter a task title and confirm its deadline."
             return
-        task = create_task(S.clean, S.category, datetime.combine(S.day, S.clock, ZONE))
+        due = datetime.combine(S.day, S.clock, ZONE) if S.day else None
+        task = create_task(S.clean, S.category, due, urgent=S.draft_urgent, important=S.draft_important)
         task["id"] = S.draft_id
     try:
         if demo:
@@ -99,15 +112,20 @@ def mutate(mode, action, ident=None, value=None):
                 S.samples.append(task)
             elif action == "delete":
                 S.samples = [t for t in S.samples if t["id"] != ident]
-            elif action == "complete":
+            elif action in ("priority", "complete"):
                 for t in S.samples:
                     if t["id"] == ident:
-                        t["completed"] = value
+                        if action == "priority":
+                            t["urgent"], t["important"] = value
+                        else:
+                            t["completed"] = value
         else:
             import database
             url = settings["url"]
             if action == "add":
                 database.add(url, task)
+            elif action == "priority":
+                database.set_priority(url, ident, *value)
             elif action == "complete":
                 database.complete(url, ident, value)
             else:
@@ -126,6 +144,9 @@ def sidebar(mode):
     st.text_input("Task title", key="title", max_chars=MAX_TITLE_LENGTH,
                   placeholder="Study SQL tomorrow at 18:00", on_change=detect)
     st.selectbox("Category", CATEGORIES, key="category")
+    important, urgent = st.columns(2)
+    important.checkbox("Important", key="draft_important")
+    urgent.checkbox("Urgent", key="draft_urgent")
     st.text_input("Quick deadline", key="quick", placeholder="Friday 15:30 · Завтра",
                   on_change=detect, disabled=S.manual)
     st.checkbox("Use literal title and manual deadline", key="manual", on_change=detect)
@@ -135,6 +156,7 @@ def sidebar(mode):
     a.date_input("Date", key="day", format="DD/MM/YYYY", min_value=min(date(1900, 1, 1), S.day or today()),
                  max_value=max(date(2100, 12, 31), S.day or today()))
     b.time_input("Time", key="clock", step=60)
+    st.button("No deadline", key="clear-due", on_click=clear_deadline)
     if S.issue:
         st.warning(S.issue)
     else:
@@ -148,16 +170,35 @@ def sidebar(mode):
         st.warning(notice)
 
 
+def move_task(mode, ident, key):
+    choice = S[key]
+    mutate(mode, "priority", ident, QUADRANTS[choice][2:])
+
+
+def priority_menu(task, mode, view):
+    ident = task["id"]
+    key = f"priority-{view}-{mode}-{ident}"
+    S[key] = quadrant(task)
+    st.selectbox("Move to quadrant", range(4), key=key,
+                 format_func=lambda i: f"{QUADRANTS[i][0]} · {QUADRANTS[i][1]}",
+                 on_change=move_task, args=(mode, ident, key))
+
+
 def task_row(task, mode, view, now):
     ident = task["id"]
-    due = local_deadline(task["deadline"])
+    due = local_deadline(task["deadline"]) if task.get("deadline") else None
+    due_text = due.strftime("%d %b %Y · %H:%M") if due else "No deadline"
     done = task["completed"]
     state = status(due, done, now)
-    with st.container(border=True):
-        if view == "tasks":
+    badge_class = state.lower().replace(" ", "-")
+    with st.container(border=view != "matrix", key=f"row-{view}-{mode}-{ident}"):
+        if view in ("tasks", "matrix"):
             body, actions = st.columns([5, 1.4], vertical_alignment="center")
-            actions.button("Delete", key=f"delete-{mode}-{ident}", on_click=mutate,
-                           args=(mode, "delete", ident))
+            with actions.popover("Edit" if view == "tasks" else "Move"):
+                priority_menu(task, mode, view)
+                if view == "tasks":
+                    st.button("Delete", key=f"delete-{mode}-{ident}", on_click=mutate,
+                              args=(mode, "delete", ident))
         else:
             body = st.container()
         with body:
@@ -170,8 +211,8 @@ def task_row(task, mode, view, now):
                 title = "".join(("\\" + c if c in r"\*_`[]~<>#$!" else c) for c in task["title"])
                 st.checkbox(title, key=key, on_change=mutate,
                             args=(mode, "complete", ident, not done))
-            st.markdown(f'<div class="task-meta"><span class="badge {state.lower()}">{state}</span>'
-                        f'<span>{html.escape(task["category"])}</span><time>{due:%d %b %Y · %H:%M}</time></div>',
+            st.markdown(f'<div class="task-meta"><span class="badge {badge_class}">{state}</span>'
+                        f'<span>{html.escape(task["category"])}</span><time>{due_text}</time></div>',
                         unsafe_allow_html=True)
 
 
@@ -215,10 +256,9 @@ def main():
             return
     with st.sidebar:
         sidebar(mode)
-    overview, listing, deadlines = st.tabs(["Dashboard", "Tasks", "Deadlines"])
-    pending = sorted((t for t in tasks if not t["completed"]),
-                     key=lambda t: (local_deadline(t["deadline"]), str(t["id"])))
+    overview, listing, deadlines, matrix = st.tabs(["Dashboard", "Tasks", "Deadlines", "Eisenhower Matrix"])
     now = datetime.now(ZONE)
+    pending = ordered(tasks, SORTS[0], "Active", now)
     with overview:
         counts = calculate_statistics(tasks)
         a, b, c = st.columns(3)
@@ -238,16 +278,55 @@ def main():
             for task in pending:
                 task_row(task, mode, "active", now)
     with listing:
-        if not tasks:
-            st.caption("Your task list is empty.")
-        for task in tasks:
+        left, right = st.columns(2)
+        sort = left.selectbox("Sort by", SORTS, key="task-sort")
+        selection = right.selectbox("Filter", FILTERS, key="task-filter")
+        visible = ordered(tasks, sort, selection, now)
+        if not visible:
+            st.caption("No matching tasks." if tasks else "Your task list is empty.")
+        for task in visible:
             task_row(task, mode, "tasks", now)
     with deadlines:
         st.caption("Deadlines in Almaty time")
-        if not pending:
+        scheduled = [t for t in pending if t.get("deadline")]
+        if not scheduled:
             st.caption("No open deadlines.")
-        for task in pending:
+        for task in scheduled:
             task_row(task, mode, "deadlines", now)
+
+    with matrix:
+        render_matrix(tasks, mode, now)
+
+
+def render_matrix(tasks, mode, now):
+    grouped = [{} for _ in QUADRANTS]
+    for task in ordered(tasks, SORTS[0], "All tasks", now):
+        group = status(task.get("deadline"), task["completed"], now)
+        name = "Later" if group == "Upcoming" else group
+        grouped[quadrant(task)].setdefault(name, []).append(task)
+    for start in (0, 2):
+        cols = st.columns(2, gap="small")
+        for index, col in enumerate(cols, start):
+            number, title, _, _ = QUADRANTS[index]
+            groups = grouped[index]
+            active = sum(len(groups.get(g, [])) for g in GROUPS)
+            with col.container(key=f"quadrant-{number}", height=350, border=True):
+                st.markdown(f'<h3 class="quadrant-title"><small>{number}</small>{title}'
+                            f'<span aria-label="{active} active tasks">{active} active</span></h3>',
+                            unsafe_allow_html=True)
+                if not active:
+                    st.caption("No active tasks")
+                for group in GROUPS:
+                    if group in groups:
+                        st.caption(group)
+                        for task in groups[group]:
+                            task_row(task, mode, "matrix", now)
+                completed = groups.get("Completed", [])
+                with st.expander(f"Completed ({len(completed)})"):
+                    for task in completed:
+                        task_row(task, mode, "matrix", now)
+                    if not completed:
+                        st.caption("No completed tasks")
 
 
 if __name__ == "__main__":

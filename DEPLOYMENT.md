@@ -35,3 +35,7 @@ Append one expression to the title or enter it in Quick deadline. Press Enter or
 Open the demo in a fresh session. Add “Professor test tomorrow at 18:00”, confirm the parsed title and deadline, and check it in Active Tasks. Completion should move from 50% to 40% on creation and to 60% on completion. Restore it under Tasks and delete it to return to 50%. For persistent storage, repeat with a disposable task in Saved workspace and verify it survives a fresh login.
 
 Community Cloud deployment guide: https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy
+
+## Manual task priorities
+
+The same first-access migration adds urgent and important Boolean columns with false defaults and permits undated tasks. Existing records retain their IDs, timestamps and deadlines and initially appear in Quadrant IV. The role must have ALTER permission. Use Edit in Tasks or Move in the matrix to reclassify a task. Sorting and filtering are session preferences.
